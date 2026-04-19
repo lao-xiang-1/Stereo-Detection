@@ -113,7 +113,7 @@ void stereo_match(int, void*)
 	disp.convertTo(disp8, CV_8U, 255 / ((numDisparities * 16 + 16)*16.));//计算出的视差是CV_16S格式
 	reprojectImageTo3D(disp, xyz, Q, true); //在实际求距离时，ReprojectTo3D出来的X / W, Y / W, Z / W都要乘以16(也就是W除以16)，才能得到正确的三维坐标信息。
 	xyz = xyz * 16;
-	imshow("disparity", disp8);
+	imwrite("disparity.jpg", disp8);
 }
 
 /*****描述：鼠标操作回调*****/
@@ -234,12 +234,12 @@ int main()
 	//画上对应的线条
 	for (int i = 0; i < canvas.rows; i += 16)
 		line(canvas, Point(0, i), Point(canvas.cols, i), Scalar(0, 255, 0), 1, 8);
-	imshow("rectified", canvas);
+	// imwrite("rectified.jpg", canvas);
 
 	/*
 	立体匹配
 	*/
-	namedWindow("disparity", WINDOW_AUTOSIZE);
+	// namedWindow("disparity", WINDOW_AUTOSIZE);
 
 	/*************************调参可视化**********************************************/
 	// 创建SAD窗口 Trackbar
@@ -251,10 +251,10 @@ int main()
 	
 
 	//鼠标响应函数setMouseCallback(窗口名称, 鼠标回调函数, 传给回调函数的参数，一般取0)
-	setMouseCallback("disparity", onMouse, 0);
+	// setMouseCallback("disparity", onMouse, 0);
 	stereo_match(0, 0);
 
-	waitKey();
+	// waitKey();
     return 0;
 }
 
