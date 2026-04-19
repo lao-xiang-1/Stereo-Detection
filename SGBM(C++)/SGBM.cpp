@@ -268,6 +268,22 @@ int main()
 		line(canvas, Point(0, i), Point(canvas.cols, i), Scalar(0, 255, 0), 1, 8);
 	imwrite("rectified.jpg", canvas);
 
+	// 将原图转换成灰度图后，也画上平行线并保存，用作和校正后的图像对比
+	Mat canvasOrig;
+	canvasOrig.create(h, w * 2, CV_8UC3);
+	Mat canvasPartOrig = canvasOrig(Rect(w * 0, 0, w, h));
+	Mat rgbOrigL, rgbOrigR;
+	cvtColor(grayImageL, rgbOrigL, COLOR_GRAY2BGR);
+	resize(rgbOrigL, canvasPartOrig, canvasPartOrig.size(), 0, 0, INTER_AREA);
+	
+	canvasPartOrig = canvasOrig(Rect(w, 0, w, h));
+	cvtColor(grayImageR, rgbOrigR, COLOR_GRAY2BGR);
+	resize(rgbOrigR, canvasPartOrig, canvasPartOrig.size(), 0, 0, INTER_LINEAR);
+	
+	for (int i = 0; i < canvasOrig.rows; i += 16)
+		line(canvasOrig, Point(0, i), Point(canvasOrig.cols, i), Scalar(0, 255, 0), 1, 8);
+	imwrite("original.jpg", canvasOrig);
+
 	/*
 	立体匹配
 	*/
