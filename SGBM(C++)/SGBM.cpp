@@ -176,10 +176,25 @@ static void onMouse(int event, int x, int y, int, void*)
 /*****主函数*****/
 int main()
 {
+	cv::FileStorage fs("camera_param.yml", cv::FileStorage::READ);
+	if (fs.isOpened()) {
+		fs["red_mtx"] >> cameraMatrixL;
+		fs["red_dist"] >> distCoeffL;
+		fs["green_mtx"] >> cameraMatrixR;
+		fs["green_dist"] >> distCoeffR;
+		fs["rg_R"] >> R;
+		fs["rg_T"] >> T;
+		fs.release();
+	}
+	else {
+		cout << "Failed to open camare_param.yml" << endl;
+		return -1;
+	}
+
 	/*
 	立体校正
 	*/
-	Rodrigues(rec, R); //Rodrigues变换
+	// Rodrigues(rec, R); //Rodrigues变换
 	stereoRectify(cameraMatrixL, distCoeffL, cameraMatrixR, distCoeffR, imageSize, R, T, Rl, Rr, Pl, Pr, Q, CALIB_ZERO_DISPARITY,
 		0, imageSize, &validROIL, &validROIR);
 	initUndistortRectifyMap(cameraMatrixL, distCoeffL, Rl, Pr, imageSize, CV_32FC1, mapLx, mapLy);
@@ -189,18 +204,20 @@ int main()
 	读取图片
 	*/
 
-	m_l_select = Rect(0, 0, 640, 480);
-	img = imread("car.jpg", IMREAD_COLOR);
-	//imshow("Image", img);
-	rgbImageL = img(m_l_select);
+	rgbImageL = imread("left_red.jpg", IMREAD_COLOR);
 	cvtColor(rgbImageL, grayImageL, COLOR_BGR2GRAY);
 
-	m_r_select = Rect(640, 0, 640, 480);
-	rgbImageR = img(m_r_select);
+	rgbImageR = imread("right_green.jpg", IMREAD_COLOR);
 	cvtColor(rgbImageR, grayImageR, COLOR_BGR2GRAY);
-
-	//imshow("ImageL", rgbImageL);
-	//imshow("ImageR", rgbImageR);
+	
+	// namedWindow("ImageL", WINDOW_AUTOSIZE);
+	// namedWindow("ImageR", WINDOW_AUTOSIZE);
+	imwrite("ImageL.jpg", grayImageL);
+	imwrite("ImageR.jpg", grayImageR);
+	// int key = -1;
+    // while (key == -1 || key == 10 || key == 13) {
+    //     key = waitKey(50);
+    // }
 
 	/*
 	经过remap之后，左右相机的图像已经共面并且行对准了
@@ -215,11 +232,11 @@ int main()
 	cvtColor(rectifyImageL, rgbRectifyImageL, COLOR_GRAY2BGR);  //伪彩色图
 	cvtColor(rectifyImageR, rgbRectifyImageR, COLOR_GRAY2BGR);
 
-	//单独显示
-	//rectangle(rgbRectifyImageL, validROIL, Scalar(0, 0, 255), 3, 8);
-	//rectangle(rgbRectifyImageR, validROIR, Scalar(0, 0, 255), 3, 8);
-	//imshow("ImageL After Rectify", rgbRectifyImageL);
-	//imshow("ImageR After Rectify", rgbRectifyImageR);
+	// //单独显示
+	// rectangle(rgbRectifyImageL, validROIL, Scalar(0, 0, 255), 3, 8);
+	// rectangle(rgbRectifyImageR, validROIR, Scalar(0, 0, 255), 3, 8);
+	// imwrite("ImageL After Rectify.jpg", rgbRectifyImageL);
+	// imwrite("ImageR After Rectify.jpg", rgbRectifyImageR);
 
 	//显示在同一张图上
 	Mat canvas;
@@ -230,7 +247,7 @@ int main()
 	h = cvRound(imageSize.height * sf);
 	canvas.create(h, w * 2, CV_8UC3);   //注意通道
 
-										//左图像画到画布上
+	//左图像画到画布上
 	Mat canvasPart = canvas(Rect(w * 0, 0, w, h));                                //得到画布的一部分  
 	resize(rgbRectifyImageL, canvasPart, canvasPart.size(), 0, 0, INTER_AREA);     //把图像缩放到跟canvasPart一样大小  
 	Rect vroiL(cvRound(validROIL.x*sf), cvRound(validROIL.y*sf),                //获得被截取的区域    
@@ -249,7 +266,7 @@ int main()
 	//画上对应的线条
 	for (int i = 0; i < canvas.rows; i += 16)
 		line(canvas, Point(0, i), Point(canvas.cols, i), Scalar(0, 255, 0), 1, 8);
-	// imshow("rectified", canvas);
+	imwrite("rectified.jpg", canvas);
 
 	/*
 	立体匹配
