@@ -31,8 +31,18 @@ Point origin;         //鼠标按下的起始点
 Rect selection;      //定义矩形选框
 bool selectObject = false;    //是否选择对象
 
-int blockSize = 8, mindisparity = 1, ndisparities = 64, img_channels = 3;
-Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create(mindisparity, ndisparities, blockSize);
+// ==== SGBM 全局调参变量 ====
+int blockSize = 1;          // 实际 BlockSize: blockSize*2 + 5 -> 默认 7
+int minDisparity = 1;       // 默认 1
+int numDisparities = 4;     // 实际 NumDisparities: numDisparities*16 -> 默认 64
+int preFilterCap = 1;       // 默认 1
+int uniquenessRatio = 10;   // 默认 10
+int speckleRange = 100;     // 默认 100
+int speckleWindowSize = 100;// 默认 100
+int disp12MaxDiff = 0;      // 实际 maxDiff: disp12MaxDiff - 1 -> 默认 -1
+int modeSGBM = 1;           // 0:SGBM, 1:HH, 2:SGBM_3WAY -> 默认 1 (HH)
+int img_channels = 3;
+Ptr<cv::StereoSGBM> sgbm = cv::StereoSGBM::create();
 
 
 
@@ -96,31 +106,28 @@ Mat R;//R 旋转矩阵
 	  /*****立体匹配*****/
 void stereo_match(int, void*)
 {
-	/*
-	bm->setBlockSize(2 * blockSize + 5);     //SAD窗口大小，5~21之间为宜
-	bm->setROI1(validROIL);
-	bm->setROI2(validROIR);
-	bm->setPreFilterCap(31);
-	bm->setMinDisparity(0);  //最小视差，默认值为0, 可以是负值，int型
-	bm->setNumDisparities(numDisparities * 16 + 16);//视差窗口，即最大视差值与最小视差值之差,窗口大小必须是16的整数倍，int型
-	bm->setTextureThreshold(10);
-	bm->setUniquenessRatio(uniquenessRatio);//uniquenessRatio主要可以防止误匹配
-	bm->setSpeckleWindowSize(100);
-	bm->setSpeckleRange(32);
-	bm->setDisp12MaxDiff(-1);
-	*/
+	int actualBlockSize = MAX(3, blockSize * 2 + 5); 
+	int actualNumDisparities = MAX(16, numDisparities * 16);
 
-	int P1 = 8 * img_channels * blockSize * blockSize;
-	int P2 = 32 * img_channels * blockSize * blockSize;
+	sgbm->setMinDisparity(minDisparity);
+	sgbm->setNumDisparities(actualNumDisparities);
+	sgbm->setBlockSize(actualBlockSize);
+
+	int P1 = 8 * img_channels * actualBlockSize * actualBlockSize;
+	int P2 = 32 * img_channels * actualBlockSize * actualBlockSize;
 	sgbm->setP1(P1);
 	sgbm->setP2(P2);
-	sgbm->setPreFilterCap(1);
-	sgbm->setUniquenessRatio(10);
-	sgbm->setSpeckleRange(100);
-	sgbm->setSpeckleWindowSize(100);
-	sgbm->setDisp12MaxDiff(-1);
-	//sgbm->setNumDisparities(1);
-	sgbm->setMode(cv::StereoSGBM::MODE_HH);
+
+	int actualPreFilterCap = MAX(1, preFilterCap);
+	sgbm->setPreFilterCap(actualPreFilterCap);
+	sgbm->setUniquenessRatio(uniquenessRatio);
+	sgbm->setSpeckleRange(speckleRange);
+	sgbm->setSpeckleWindowSize(speckleWindowSize);
+	sgbm->setDisp12MaxDiff(disp12MaxDiff - 1);
+
+	if (modeSGBM == 0) sgbm->setMode(cv::StereoSGBM::MODE_SGBM);
+	else if (modeSGBM == 1) sgbm->setMode(cv::StereoSGBM::MODE_HH);
+	else sgbm->setMode(cv::StereoSGBM::MODE_SGBM_3WAY);
 	
 	Mat disp, disp8;
 	sgbm->compute(rectifyImageL, rectifyImageR, disp);//输入图像必须为灰度图
@@ -128,7 +135,7 @@ void stereo_match(int, void*)
 	normalize(disp, disp8, 0, 255, NORM_MINMAX, CV_8UC1);
 	reprojectImageTo3D(disp, xyz, Q, true); //在实际求距离时，ReprojectTo3D出来的X / W, Y / W, Z / W都要乘以16(也就是W除以16)，才能得到正确的三维坐标信息。
 	xyz = xyz * 16;
-	imwrite("disparity.jpg", disp8);
+	imshow("disparity", disp8);
 }
 
 /*****描述：鼠标操作回调*****/
@@ -287,21 +294,23 @@ int main()
 	/*
 	立体匹配
 	*/
-	// namedWindow("disparity", WINDOW_AUTOSIZE);
+	namedWindow("disparity", WINDOW_AUTOSIZE);
 
 	/*************************调参可视化**********************************************/
-	// 创建SAD窗口 Trackbar
-	//createTrackbar("BlockSize:\n", "disparity", &blockSize, 8, stereo_match);
-	// 创建视差唯一性百分比窗口 Trackbar
-	//createTrackbar("UniquenessRatio:\n", "disparity", &uniquenessRatio, 50, stereo_match);
-	// 创建视差窗口 Trackbar
-	//createTrackbar("NumDisparities:\n", "disparity", &numDisparities, 16, stereo_match);
-
+	createTrackbar("BlockSize(x2+5):\n", "disparity", &blockSize, 10, stereo_match);
+	createTrackbar("MinDisparity:\n", "disparity", &minDisparity, 20, stereo_match);
+	createTrackbar("NumDisp(x16):\n", "disparity", &numDisparities, 16, stereo_match);
+	createTrackbar("PreFilterCap:\n", "disparity", &preFilterCap, 63, stereo_match);
+	createTrackbar("UniquenessRatio:\n", "disparity", &uniquenessRatio, 50, stereo_match);
+	createTrackbar("SpeckleWin:\n", "disparity", &speckleWindowSize, 200, stereo_match);
+	createTrackbar("SpeckleRange:\n", "disparity", &speckleRange, 100, stereo_match);
+	createTrackbar("Disp12MaxD(+1):\n", "disparity", &disp12MaxDiff, 25, stereo_match);
+	createTrackbar("Mode(0~2):\n", "disparity", &modeSGBM, 2, stereo_match);
 
 	//鼠标响应函数setMouseCallback(窗口名称, 鼠标回调函数, 传给回调函数的参数，一般取0)
-	// setMouseCallback("disparity", onMouse, 0);
+	setMouseCallback("disparity", onMouse, 0);
 	stereo_match(0, 0);
 
-	// waitKey();
+	waitKey();
 	return 0;
 }
