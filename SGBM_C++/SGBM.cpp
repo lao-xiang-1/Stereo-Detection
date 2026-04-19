@@ -32,13 +32,13 @@ Rect selection;      //定义矩形选框
 bool selectObject = false;    //是否选择对象
 
 // ==== SGBM 全局调参变量 ====
-int blockSize = 1;          // 实际 BlockSize: blockSize*2 + 5 -> 默认 7
-int minDisparity = 1;       // 默认 1
-int numDisparities = 4;     // 实际 NumDisparities: numDisparities*16 -> 默认 64
-int preFilterCap = 1;       // 默认 1
+int blockSize = 2;          // 实际 BlockSize: blockSize*2 + 5 -> 默认 7
+int minDisparity = 0;       // 默认 1
+int numDisparities = 3;     // 实际 NumDisparities: numDisparities*16 -> 默认 64
+int preFilterCap = 58;       // 默认 1
 int uniquenessRatio = 10;   // 默认 10
-int speckleRange = 100;     // 默认 100
-int speckleWindowSize = 100;// 默认 100
+int speckleRange = 2;     // 默认 100
+int speckleWindowSize = 200;// 默认 100
 int disp12MaxDiff = 0;      // 实际 maxDiff: disp12MaxDiff - 1 -> 默认 -1
 int modeSGBM = 1;           // 0:SGBM, 1:HH, 2:SGBM_3WAY -> 默认 1 (HH)
 int img_channels = 3;
@@ -135,7 +135,10 @@ void stereo_match(int, void*)
 	normalize(disp, disp8, 0, 255, NORM_MINMAX, CV_8UC1);
 	reprojectImageTo3D(disp, xyz, Q, true); //在实际求距离时，ReprojectTo3D出来的X / W, Y / W, Z / W都要乘以16(也就是W除以16)，才能得到正确的三维坐标信息。
 	xyz = xyz * 16;
-	imshow("disparity", disp8);
+	
+	Mat dispColor;
+	applyColorMap(disp8, dispColor, COLORMAP_JET);
+	imshow("disparity", dispColor);
 }
 
 /*****描述：鼠标操作回调*****/
